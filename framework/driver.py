@@ -1,7 +1,10 @@
 from enum import Enum
+from typing import Optional
 from urllib.parse import urlparse
 
 import requests
+
+from framework.response import APIResponse
 
 
 class RequestMethods(Enum):
@@ -40,6 +43,13 @@ class Driver:
             """
         if Driver.__API_URL is None:
             self.set_api_url(url)
+        self.__last_response: Optional[APIResponse] = None
+
+    @property
+    def response(self):
+        if self.__last_response is None:
+            raise ValueError("No response received yet, are you sure you have made a request?")
+        return self.__last_response
 
     @staticmethod
     def set_api_url(url):
@@ -91,6 +101,8 @@ class Driver:
         Raises:
             AssertionError: If the resulting URL is invalid.
         """
+        if 'http' in path or 'www' in path:
+            return base_url
         if path.startswith(base_url):
             Driver.__is_valid_url(path)
             return path
@@ -104,36 +116,33 @@ class Driver:
         else:
             assert False, f"Invalid URL {url}"
 
-    @staticmethod
-    def get(relative_path, headers=None, auth=None):
+    def get(self, relative_path, headers=None, auth=None):
         """
         A static method to make a GET request with the given relative path, headers, and authentication.
         """
         method = RequestMethods.GET.value
         url = Driver.__get_url_path(Driver.get_api_url(), relative_path)
-        return Driver.request(method=method, url=url, headers=headers, auth=auth)
+        print(url)
+        return self.request(method=method, url=url, headers=headers, auth=auth)
 
-    @staticmethod
-    def post(relative_path, headers=None, auth=None, json=None):
+    def post(self, relative_path, headers=None, auth=None, json=None):
         """
         Send a POST request to the specified relative path with optional headers, authentication, and JSON data.
         """
         method = RequestMethods.POST.value
         url = Driver.__get_url_path(Driver.get_api_url(), relative_path)
-        return Driver.request(method=method, url=url, headers=headers, auth=auth, json=json)
+        return self.request(method=method, url=url, headers=headers, auth=auth, json=json)
 
-    @staticmethod
-    def put(relative_path, headers=None, auth=None, json=None):
+    def put(self, relative_path, headers=None, auth=None, json=None):
         """
         Sends a PUT request to the specified `relative_path` with optional `headers`, `auth`, and `json` data.
-        Returns the response from the request.
+        Returns the __response from the request.
         """
         method = RequestMethods.PUT.value
         url = Driver.__get_url_path(Driver.get_api_url(), relative_path)
-        return Driver.request(method=method, url=url, headers=headers, auth=auth, json=json)
+        return self.request(method=method, url=url, headers=headers, auth=auth, json=json)
 
-    @staticmethod
-    def delete(relative_path, headers=None, auth=None, json=None):
+    def delete(self, relative_path, headers=None, auth=None, json=None):
         """
         Deletes a resource at the specified relative path using the DELETE method.
 
@@ -142,23 +151,21 @@ class Driver:
         :param auth: (optional) Authentication information for the request.
         :param json: (optional) A JSON object to send in the body of the request.
 
-        :return: The response from the DELETE request.
+        :return: The __response from the DELETE request.
         """
         method = RequestMethods.DELETE.value
         url = Driver.__get_url_path(Driver.get_api_url(), relative_path)
-        return Driver.request(method=method, url=url, headers=headers, auth=auth, json=json)
+        return self.request(method=method, url=url, headers=headers, auth=auth, json=json)
 
-    @staticmethod
-    def patch(relative_path, headers=None, auth=None, json=None):
+    def patch(self, relative_path, headers=None, auth=None, json=None):
         """
         Perform a PATCH request to the specified relative path with optional headers, authentication, and JSON data.
         """
         method = RequestMethods.PATCH.value
         url = Driver.__get_url_path(Driver.get_api_url(), relative_path)
-        return Driver.request(method=method, url=url, headers=headers, auth=auth, json=json)
+        return self.request(method=method, url=url, headers=headers, auth=auth, json=json)
 
-    @staticmethod
-    def request(method, url, headers=None, auth=None, json=None) -> requests.Response:
+    def request(self, method, url, headers=None, auth=None, json=None) -> requests.Response:
         """
         A static method to make a request using the provided method, URL, headers, authentication, and JSON data.
         Parameters:
@@ -168,6 +175,11 @@ class Driver:
             auth (tuple, optional): The authentication credentials (username, password) for the request.
             json (dict, optional): The JSON data to be sent in the request body.
         Returns:
-            requests.Response: The response from the HTTP request.
+            requests.Response: The __response from the HTTP request.
         """
-        return requests.request(method=method, url=url, headers=headers, auth=auth, json=json)
+        print(url)
+        response = requests.request(method=method, url=url, headers=headers, auth=auth, json=json)
+        self.__last_response = APIResponse(response)
+        print(self.__last_response.raw_response)
+        print(response.text)
+        return response
